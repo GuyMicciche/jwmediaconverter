@@ -1,0 +1,6 @@
+Flask
+Flask-WTF
+Bootstrap-Flask
+gunicorn
+Werkzeug
+azure-storage-blob

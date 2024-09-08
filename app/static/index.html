@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Title Search</title>
+    <link href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .autocomplete-item {
+            cursor: pointer;
+            padding: .5rem;
+        }
+        .autocomplete-item:hover {
+            background-color: #f8f9fa;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-5">
+        <h1 class="text-center">Video Title Search</h1>
+        <div class="row mt-4">
+            <div class="col-md-6 offset-md-3">
+                <!-- Search Box -->
+                <input type="text" id="searchBox" class="form-control" placeholder="Search for a video title...">
+                <!-- Autocomplete Results -->
+                <div id="autocompleteResults" class="list-group mt-2"></div>
+                <!-- Selected Titles -->
+                <h3 class="mt-4">Selected Titles</h3>
+                <ul id="selectedItems" class="list-group mt-2"></ul>
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <script>
+        let titles = [];
+
+        // Fetch titles when the page loads
+        $(document).ready(function() {
+            fetch('/search')
+                .then(response => response.json())
+                .then(data => {
+                    titles = data.titles;
+                })
+                .catch(error => console.error('Error fetching video titles:', error));
+        });
+
+        // Search Titles
+        $('#searchBox').on('input', function() {
+            const query = $(this).val().toLowerCase();
+            const filteredTitles = titles.filter(title => title.toLowerCase().includes(query));
+            displayAutocompleteResults(filteredTitles);
+        });
+
+        // Display Autocomplete Results
+        function displayAutocompleteResults(results) {
+            $('#autocompleteResults').empty();
+            results.forEach(result => {
+                const item = $('<div class="list-group-item list-group-item-action autocomplete-item"></div>');
+                item.text(result);
+                item.on('click', function() {
+                    addToSelected(result);
+                });
+                $('#autocompleteResults').append(item);
+            });
+        }
+
+        // Add to Selected Titles
+        function addToSelected(title) {
+            if ($('#selectedItems').find(`li:contains(${title})`).length === 0) {
+                const item = $('<li class="list-group-item d-flex justify-content-between align-items-center"></li>');
+                item.text(title);
+                const removeBtn = $('<button class="btn btn-danger btn-sm">Remove</button>');
+                removeBtn.on('click', function() {
+                    item.remove();
+                });
+                item.append(removeBtn);
+                $('#selectedItems').append(item);
+            }
+        }
+    </script>
+</body>
+</html>

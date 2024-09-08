@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Download Your File - Azure Media Converter</title>
+    {{ bootstrap.load_css() }}
+    <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}">
+</head>
+<body>
+<main>
+    <div class="px-4 py-3 my-2 text-center">
+        <img class="d-block mx-auto mb-4" src="{{ url_for('static', filename='images/azure-icon.svg') }}" alt="Azure Logo" width="192" height="192"/>
+        <h1 class="display-6 fw-bold">Your file is ready for download!</h1>
+        <p class="fs-5">Click the link below to download your converted audio files.</p>
+
+        <!-- Download button with the link -->
+        <a href="{{ download_url }}" class="btn btn-primary btn-lg px-4 gap-3" download>Download ZIP File</a>
+
+        <!-- Back to home button -->
+        <div class="my-4">
+            <a href="{{ url_for('index') }}" class="btn btn-secondary btn-lg px-4 gap-3">Back to Home</a>
+        </div>
+    </div>
+</main>
+{{ bootstrap.load_js() }}
+</body>
+</html>

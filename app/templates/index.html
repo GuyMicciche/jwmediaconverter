@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hello Azure - Python Quickstart</title>
+    {{ bootstrap.load_css() }}
+    <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}">
+
+    <style>
+        /* Loading overlay that covers the entire screen */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.6);
+            /* Dark overlay */
+            z-index: 1000;
+            display: none;
+            /* Hidden initially */
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Center the spinner inside the overlay */
+        .loading-overlay .spinner-container {
+            text-align: center;
+            color: white;
+        }
+
+        /* Disable user interaction */
+        body.loading {
+            pointer-events: none;
+            /* Disable clicks */
+            user-select: none;
+            /* Prevent text selection */
+        }
+    </style>
+</head>
+
+<body>
+    <main>
+        <div class="px-4 py-3 my-2 text-center">
+            <img class="d-block mx-auto mb-4" src="{{ url_for('static', filename='images/azure-icon.svg') }}"
+                alt="Azure Logo" width="192" height="192" />
+            <h1 class="display-6 fw-bold text-primary">Welcome to Azure</h1>
+        </div>
+
+        <!-- Form that submits to the /download route directly -->
+        <form id="videoForm" method="POST" action="{{ url_for('download_selected_videos') }}">
+            {{ form.hidden_tag() }}
+            <div class="col-md-6 mx-auto text-center">
+                <label for="name" class="form-label fw-bold fs-5">Could you please tell me the title of the
+                    video?</label>
+                <div class="d-grid gap-2 d-sm-flex justify-content-sm-center align-items-center my-1">
+                    {{ form.name(class_="form-control autocomplete", id="name", placeholder="Enter video title",
+                    required=False) }}
+                </div>
+                <input type="hidden" name="selected_videos" id="selected_videos_input">
+                <div class="d-grid gap-2 d-sm-flex justify-content-sm-center my-2">
+                    <button type="submit" class="btn btn-primary btn-lg px-4 gap-3">Convert</button>
+                </div>
+            </div>
+        </form>
+
+        <!-- Listbox for selected items -->
+        <div class="col-md-6 mx-auto">
+            <h2 class="fw-bold">Selected Titles</h2>
+            <ul id="selectedItems" class="list-group">
+                <!-- Selected items will appear here with delete buttons -->
+            </ul>
+        </div>
+
+        <!-- Loading overlay with spinner -->
+        <div id="loadingOverlay" class="loading-overlay">
+            <div class="spinner-container">
+                <div class="spinner-border text-light" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <p class="mt-3">Processing your request, please wait...</p>
+            </div>
+        </div>
+    </main>
+
+    {{ bootstrap.load_js() }}
+    <script src="{{ url_for('static', filename='js/autocomplete.js') }}" type="module"></script>
+    <script type="module">
+        import Autocomplete from "./static/js/autocomplete.js";
+
+        let selectedVideos = [];  // Array to store all selected videos
+
+        document.addEventListener('DOMContentLoaded', (event) => {
+            // No need to hide the loading overlay here since it's already hidden by default
+
+            fetch('/search')
+                .then(response => response.json())
+                .then(data => {
+                    const titles = data.map(item => ({ title: item.title, data: item }));
+
+                    Autocomplete.init("input.autocomplete", {
+                        items: titles,
+                        valueField: "title",
+                        labelField: "title",
+                        highlightTyped: true,
+                        fullWidth: true, // Use fullWidth option
+                        onSelectItem: (item, instance) => {
+                            addItemToListbox(item.label, item.data); // Add selected item to listbox
+                            instance.getInput().value = ""; // Clear the input box after selection
+                        }
+                    });
+                })
+                .catch(error => console.log('Error fetching titles:', error));
+        });
+
+        // Function to add item to the listbox with a delete button
+        function addItemToListbox(itemTitle, data) {
+            const listbox = document.getElementById('selectedItems');
+
+            // Check if the video is already selected
+            if (selectedVideos.some(video => video.title === data.title)) {
+                alert("This video is already selected.");
+                return;  // Prevent adding the same video twice
+            }
+
+            // Create a new list item with the delete button
+            const listItem = document.createElement('li');
+            listItem.classList.add('list-group-item', 'd-flex', 'justify-content-between', 'align-items-center');
+            listItem.textContent = itemTitle;
+
+            // Add the selected video to the array
+            selectedVideos.push(data);
+
+            // Update hidden input field with the selected videos
+            document.getElementById('selected_videos_input').value = JSON.stringify(selectedVideos);
+
+            // Create delete button
+            const deleteButton = document.createElement('button');
+            deleteButton.classList.add('btn', 'btn-danger', 'btn-sm');
+            deleteButton.textContent = 'X';
+            deleteButton.onclick = function () {
+                listbox.removeChild(listItem);  // Remove the item from the list
+                const index = selectedVideos.indexOf(data);
+                if (index > -1) {
+                    selectedVideos.splice(index, 1);  // Remove from selectedVideos array
+                    document.getElementById('selected_videos_input').value = JSON.stringify(selectedVideos);
+                }
+            };
+
+            // Append the delete button to the list item
+            listItem.appendChild(deleteButton);
+
+            // Append the list item to the listbox
+            listbox.appendChild(listItem);
+        }
+
+        // Handle form submission
+        document.getElementById('videoForm').addEventListener('submit', function (event) {
+            // If no videos are selected, show a popup alert and prevent form submission
+            if (selectedVideos.length === 0) {
+                alert("Please select at least one video before clicking Convert.");
+                event.preventDefault();
+                return;
+            }
+
+            // Show the loading overlay and disable UI interaction
+            document.getElementById('loadingOverlay').style.display = 'flex';  // Display the overlay when submitting
+            document.body.classList.add('loading');  // Disable interaction
+        });
+
+        // Ensure the page reloads when navigating back, clearing any cache
+        window.addEventListener('pageshow', function (event) {
+            if (event.persisted) {
+                window.location.reload();
+            }
+        });
+    </script>
+</body>
+
+</html>
