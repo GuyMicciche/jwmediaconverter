@@ -37,6 +37,8 @@ jobs:
         run: |
           wget -O ./app/bin/ffmpeg.tar.xz https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz
           tar -xf ./app/bin/ffmpeg.tar.xz --strip-components=1 -C ./app/bin
+          # Keep only the ffmpeg executable, remove other files
+          find ./app/bin ! -name 'ffmpeg' -type f -exec rm -f {} +
         
       # Optional: Add step to run tests here (PyTest, Django test suites, etc.)
 
