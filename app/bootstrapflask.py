@@ -23,6 +23,10 @@ Bootstrap5(app)
 ROOT = Path(__file__).parent
 os.environ["PATH"] += os.pathsep + str(ROOT / "bin")
 
+# Get the path to ffmpeg from the environment variable
+ffmpeg_path = os.getenv('FFMPEG_PATH')
+# ffmpeg_path = 'ffmpeg'
+
 # Azure Blob Storage setup (replace with your credentials)
 BLOB_CONNECTION_STRING = os.getenv('BLOB_CONNECTION_STRING')
 BLOB_CONTAINER_NAME = "convertedfiles"
@@ -287,7 +291,7 @@ def combine_audio_subtitles(video_en, video_chs, subtitles_en=None, subtitles_ch
         temp_video_chs.write(video_chs.getvalue())
 
         command = [
-            'ffmpeg', '-y',  # Overwrite output file if exists
+            ffmpeg_path, '-y',  # Overwrite output file if exists
             '-i', temp_video_en.name,  # English video input (temp file)
             '-i', temp_video_chs.name  # Chinese video input (temp file)
         ]
