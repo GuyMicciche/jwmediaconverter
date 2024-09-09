@@ -75,6 +75,52 @@ def search_titles():
         print(f"An error occurred: {e}")
         return jsonify({"error": str(e)}), 500
 
+@app.route('/download', methods=['POST'])
+def download_selected_videos():
+    print(request)
+      # Get the selected videos from the form data
+    selected_videos_json = request.form.get('selected_videos', '[]')
+    selected_videos = json.loads(selected_videos_json)
+    
+    combined_streams = []
+
+    # Fetch, combine, and zip videos
+    for video in selected_videos:
+        try:
+            language_agnostic_natural_key = video['data']['languageAgnosticNaturalKey']
+            video_info = fetch_download_links(language_agnostic_natural_key)
+
+            print(video_info)
+
+            # Convert and combine video, audio, and subtitles
+            combined_stream = process_convert(video_info)
+            if combined_stream:
+                combined_streams.append({f"{video['data']['title']}.mkv": combined_stream})
+        except Exception as e:
+            return jsonify({"status": "error", "message": str(e)}), 500
+
+    # Zip the combined streams
+    zip_stream = create_zip_in_memory(combined_streams)
+
+    # Upload ZIP to Azure Blob Storage
+    zip_blob_name = f"{str(uuid.uuid4())}.zip"
+    try:
+        zip_blob_url = upload_to_blob_from_memory(zip_stream, zip_blob_name)
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+    # Redirect to download page
+    return redirect(url_for('download_page', download_url=zip_blob_url))
+
+# Function to render a download page with the download URL
+@app.route('/download_page')
+def download_page():
+    download_url = request.args.get('download_url')
+    if download_url:
+        return render_template('download.html', download_url=download_url)
+    else:
+        return "No download URL found.", 400
+
 def fetch_and_decompress_gz(gz_url):
     response = requests.get(gz_url, stream=True)
     if response.status_code == 200:
@@ -119,19 +165,6 @@ def upload_to_blob_from_memory(audio_stream, blob_name):
     # Upload the audio stream directly to Azure Blob Storage
     blob_client.upload_blob(audio_stream, blob_type="BlockBlob", overwrite=True)
     return blob_client.url  # Return the URL of the uploaded blob
-
-# Helper function to fetch video download link based on the largest filesize
-def fetch_largest_download_link(language_agnostic_natural_key):
-    url = f"https://b.jw-cdn.org/apis/mediator/v1/media-items/E/{language_agnostic_natural_key}?clientType=www"
-    response = requests.get(url)
-    
-    if response.status_code == 200:
-        media_data = response.json()
-        # Find the file with the largest size
-        largest_file = max(media_data['media'][0]['files'], key=lambda f: f['filesize'])
-        return largest_file['progressiveDownloadURL']
-    else:
-        raise Exception(f"Failed to retrieve download link for {language_agnostic_natural_key}")
 
 def fetch_download_links(language_agnostic_natural_key):
     """
@@ -309,52 +342,6 @@ def download_subtitles(subtitle_url):
         return subtitle_stream
     else:
         raise Exception(f"Failed to download subtitles from {subtitle_url}")
-
-@app.route('/download', methods=['POST'])
-def download_selected_videos():
-    print(request)
-      # Get the selected videos from the form data
-    selected_videos_json = request.form.get('selected_videos', '[]')
-    selected_videos = json.loads(selected_videos_json)
-    
-    combined_streams = []
-
-    # Fetch, combine, and zip videos
-    for video in selected_videos:
-        try:
-            language_agnostic_natural_key = video['data']['languageAgnosticNaturalKey']
-            video_info = fetch_download_links(language_agnostic_natural_key)
-
-            print(video_info)
-
-            # Convert and combine video, audio, and subtitles
-            combined_stream = process_convert(video_info)
-            if combined_stream:
-                combined_streams.append({f"{video['data']['title']}.mkv": combined_stream})
-        except Exception as e:
-            return jsonify({"status": "error", "message": str(e)}), 500
-
-    # Zip the combined streams
-    zip_stream = create_zip_in_memory(combined_streams)
-
-    # Upload ZIP to Azure Blob Storage
-    zip_blob_name = f"{str(uuid.uuid4())}.zip"
-    try:
-        zip_blob_url = upload_to_blob_from_memory(zip_stream, zip_blob_name)
-    except Exception as e:
-        return jsonify({"status": "error", "message": str(e)}), 500
-
-    # Redirect to download page
-    return redirect(url_for('download_page', download_url=zip_blob_url))
-
-# Function to render a download page with the download URL
-@app.route('/download_page')
-def download_page():
-    download_url = request.args.get('download_url')
-    if download_url:
-        return render_template('download.html', download_url=download_url)
-    else:
-        return "No download URL found.", 400
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
