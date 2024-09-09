@@ -7,6 +7,7 @@ import json
 import subprocess
 import shutil
 import tempfile
+import uuid
 from flask import Flask, jsonify, render_template, request, send_from_directory, redirect, url_for, flash, send_file
 from flask_bootstrap import Bootstrap5
 from flask_wtf import FlaskForm
@@ -62,19 +63,6 @@ def hello():
     else:
         return redirect(url_for('index'))
     
-@app.route('/info')
-def info():
-    # Get the selected video's data from the query parameters
-    video_title = request.args.get('title')
-    video_data = request.args.get('data')
-
-    # Convert the string back to JSON for rendering
-    if video_data:
-        video_data = json.loads(video_data)
-
-    return render_template('info.html', title=video_title, data=video_data)
-
-
 @app.route('/search')
 def search_titles():
     gz_url = 'https://app.jw-cdn.org/catalogs/media/E.json.gz'
@@ -114,62 +102,17 @@ def download_video(video_url):
             video_stream.write(chunk)
     video_stream.seek(0)  # Reset the stream position to the beginning
     return video_stream  # Return video stream in memory
-    
-# Function to convert video to audio using FFmpeg
-def convert_to_audio(video_path, audio_name):
-    audio_path = f'/tmp/{audio_name}'
-    command = ['ffmpeg', '-i', video_path, '-q:a', '0', '-map', 'a', audio_path]
-    subprocess.run(command, check=True)
-    return audio_path
-
-def convert_to_audio_in_memory(video_stream):
-    try:
-        audio_stream = BytesIO()
-        command = [
-            'ffmpeg',
-            '-i', 'pipe:0',   # Input from stdin (the video stream)
-            '-vn',            # Disable the video part of the stream (keep audio only)
-            '-ar', '44100',   # Set the audio sample rate to 44.1 kHz (common for MP3)
-            '-ac', '2',       # Set the audio channel count to 2 (stereo)
-            '-b:a', '192k',   # Set the audio bitrate to 192 kbps (you can adjust as needed)
-            '-f', 'mp3',      # Specify MP3 as the output format
-            'pipe:1'          # Output to stdout (the audio stream)
-        ]
-        process = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
-
-        audio_output, _ = process.communicate(input=video_stream.getvalue())
-        # Write audio output to in-memory BytesIO stream
-        audio_stream.write(audio_output)
-        audio_stream.seek(0)  # Reset stream position
-        
-        return audio_stream  # Return the audio as an in-memory stream
-    except Exception as e:
-        print(e)
-
-# Function to create a ZIP file containing all the converted audio files
-def create_zip(file_paths, zip_name):
-    zip_path = f'/tmp/{zip_name}.zip'
-    with shutil.ZipFile(zip_path, 'w') as zipf:
-        for file_path in file_paths:
-            zipf.write(file_path, os.path.basename(file_path))
-    return zip_path
 
 # Function to create a ZIP file containing all the converted audio files in memory
-def create_zip_in_memory(audio_streams):
+def create_zip_in_memory(media_streams):
     zip_stream = BytesIO()
     with zipfile.ZipFile(zip_stream, 'w', zipfile.ZIP_DEFLATED) as zipf:
-        for i, audio_stream in enumerate(audio_streams):
-            audio_stream.seek(0)  # Reset the position of each audio stream
-            zipf.writestr(f'converted_video_{i + 1}.mkv', audio_stream.read())
+        for media_dict in media_streams:
+            for file_name, media_stream in media_dict.items():  # Unpack the dictionary
+                media_stream.seek(0)  # Reset the position of each audio stream
+                zipf.writestr(file_name, media_stream.read())  # Use the file name from the dictionary
     zip_stream.seek(0)  # Reset stream position to the beginning of the zip
     return zip_stream  # Return the in-memory zip stream
-
-# Function to upload the ZIP file to Azure Blob Storage
-def upload_to_blob(file_path, blob_name):
-    blob_client = container_client.get_blob_client(blob_name)
-    with open(file_path, 'rb') as data:
-        blob_client.upload_blob(data)
-    return blob_client.url
 
 def upload_to_blob_from_memory(audio_stream, blob_name):
     blob_client = container_client.get_blob_client(blob_name)
@@ -237,50 +180,32 @@ def fetch_download_links(language_agnostic_natural_key):
     else:
         raise Exception("Failed to retrieve download links for one or both languages.")
 
-def convert_and_combine_videos(video_info):
+def process_convert(video_info):
     """
     Combine English and Chinese videos and subtitles into a single file.
     """
     try:
         # Download English video
         video_en = download_video(video_info['en']['video_url'])
-        #audio_en = convert_to_audio_in_memory(video_en)
-        print("Downloaded English" + video_info['en']['video_url'])
         # Download Chinese video
         video_chs = download_video(video_info['chs']['video_url'])
-        #audio_chs = convert_to_audio_in_memory(video_chs)
-        print("Downloaded Chinese" + video_info['chs']['video_url'])
 
         if video_en is None or video_chs is None:
             raise ValueError("Video streams cannot be None")
 
-        print(video_info)
         # Download subtitles (if available)
         subtitles_en = download_subtitles(video_info['en']['subtitles_url']) if video_info['en']['subtitles_url'] != 'None' else None
         subtitles_chs = download_subtitles(video_info['chs']['subtitles_url']) if video_info['chs']['subtitles_url'] != 'None' else None
 
-        if subtitles_en is not None:
-            print("Adding English subtitles")
-        if subtitles_chs is not None:
-            print("Adding Chinese subtitles")
-
-        print("English video size:", video_en.getbuffer().nbytes)
-        print("Chinese video size:", video_chs.getbuffer().nbytes)
-
-        if subtitles_en:
-            print("English subtitles size:", subtitles_en.getbuffer().nbytes)
-        if subtitles_chs:
-            print("Chinese subtitles size:", subtitles_chs.getbuffer().nbytes)
-
         # Combine the audio and subtitles using ffmpeg
-        combined_stream = combine_audio_subtitles(video_en, video_chs, subtitles_en, subtitles_chs)
+        combined_stream = do_mux(video_en, video_chs, subtitles_en, subtitles_chs)
 
         return combined_stream
     except Exception as e:
         print(f"Error during conversion: {e}")
         return None
 
-def combine_audio_subtitles(video_en, video_chs, subtitles_en=None, subtitles_chs=None):
+def do_mux(video_en, video_chs, subtitles_en=None, subtitles_chs=None):
     """
     Combine English and Chinese audio streams and subtitles into a single MKV file.
     Returns the MKV file as a file stream.
@@ -385,47 +310,6 @@ def download_subtitles(subtitle_url):
     else:
         raise Exception(f"Failed to download subtitles from {subtitle_url}")
 
-@app.route('/convert')
-def convert_video():
-    try:
-        # Step 1: Fetch JSON with video links
-        video_data = {
-                "videos": [
-                    {
-                        "name": "example_video_1",
-                        "url": "https://download-a.akamaihd.net/files/content_assets/c6/502018809_E_cnt_1_r240P.mp4"
-                    },
-                    {
-                        "name": "example_video_2",
-                        "url": "https://download-a.akamaihd.net/files/content_assets/c6/502018809_E_cnt_1_r240P.mp4"
-                    }
-                ]
-            }
-
-        audio_streams = []
-
-        for video in video_data['videos']:
-            video_url = video['url']
-            # Step 2: Download the video
-            video_stream  = download_video(video_url)
-            
-            # Step 3: Convert the video to audio
-            audio_stream  = convert_to_audio_in_memory(video_stream)
-
-            audio_streams.append(audio_stream)
-
-        # Step 4: Create a ZIP file containing all the converted audio files
-        zip_name = 'converted_audio_files.zip'
-        zip_stream = create_zip_in_memory(audio_streams)
-
-        # Step 5: Upload the ZIP file to Azure Blob Storage
-        zip_blob_url = upload_to_blob_from_memory(zip_stream, zip_name)
-
-        return jsonify({"status": "success", "download_url": zip_blob_url})
-
-    except Exception as e:
-        return jsonify({"status": "error", "message": str(e)})
-
 @app.route('/download', methods=['POST'])
 def download_selected_videos():
     print(request)
@@ -444,9 +328,9 @@ def download_selected_videos():
             print(video_info)
 
             # Convert and combine video, audio, and subtitles
-            combined_stream = convert_and_combine_videos(video_info)
+            combined_stream = process_convert(video_info)
             if combined_stream:
-                combined_streams.append(combined_stream)
+                combined_streams.append({f"{video['data']['title']}.mkv": combined_stream})
         except Exception as e:
             return jsonify({"status": "error", "message": str(e)}), 500
 
@@ -454,7 +338,7 @@ def download_selected_videos():
     zip_stream = create_zip_in_memory(combined_streams)
 
     # Upload ZIP to Azure Blob Storage
-    zip_blob_name = 'combined_audio_subtitles.zip'
+    zip_blob_name = f"{str(uuid.uuid4())}.zip"
     try:
         zip_blob_url = upload_to_blob_from_memory(zip_stream, zip_blob_name)
     except Exception as e:
