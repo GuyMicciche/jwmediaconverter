@@ -29,6 +29,7 @@ jobs:
       
       - name: Install dependencies
         run: pip install -r requirements.txt
+<<<<<<< HEAD
 
       - name: Create bin directory
         run: mkdir -p ./app/bin
@@ -39,6 +40,8 @@ jobs:
           tar -xf ./app/bin/ffmpeg.tar.xz --strip-components=1 -C ./app/bin
           # Keep only the ffmpeg executable, remove other files
           find ./app/bin ! -name 'ffmpeg' -type f -exec rm -f {} +        
+=======
+>>>>>>> 4c6eef9c74b79dc494bb34f0fc692fb521c1c7de
         
       # Optional: Add step to run tests here (PyTest, Django test suites, etc.)
 
@@ -71,6 +74,7 @@ jobs:
       - name: Unzip artifact for deployment
         run: unzip release.zip
 
+<<<<<<< HEAD
       
       - name: Login to Azure
         uses: azure/login@v2
@@ -78,6 +82,15 @@ jobs:
           client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_1AF22C12AFF542D686C783FDD94D454D }}
           tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_CBE632E673454ABBB1825B6CDE01281F }}
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_A336EFB56863462DB53352BEA085CA08 }}
+=======
+      
+      - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_1AF22C12AFF542D686C783FDD94D454D }}
+          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_CBE632E673454ABBB1825B6CDE01281F }}
+          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_A336EFB56863462DB53352BEA085CA08 }}
+>>>>>>> 4c6eef9c74b79dc494bb34f0fc692fb521c1c7de
 
       - name: 'Deploy to Azure Web App'
         uses: azure/webapps-deploy@v3
