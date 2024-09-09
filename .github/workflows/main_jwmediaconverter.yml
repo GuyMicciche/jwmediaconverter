@@ -29,16 +29,6 @@ jobs:
       
       - name: Install dependencies
         run: pip install -r requirements.txt
-
-      - name: Create bin directory
-        run: mkdir -p ./app/bin
-
-      - name: Download and extract FFMPEG to app/bin
-        run: |
-          wget -O ./app/bin/ffmpeg.tar.xz https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz
-          tar -xf ./app/bin/ffmpeg.tar.xz --strip-components=1 -C ./app/bin
-          # Keep only the ffmpeg executable, remove other files
-          find ./app/bin ! -name 'ffmpeg' -type f -exec rm -f {} +
         
       # Optional: Add step to run tests here (PyTest, Django test suites, etc.)
 
@@ -75,9 +65,9 @@ jobs:
       - name: Login to Azure
         uses: azure/login@v2
         with:
-          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_7714A48C1137478D99614F13DA04F0F6 }}
-          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_A2B0757075FD4DDEB99430B94C58694B }}
-          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_CA607B9B85D845DAA10BF6F24B54E083 }}
+          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_1AF22C12AFF542D686C783FDD94D454D }}
+          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_CBE632E673454ABBB1825B6CDE01281F }}
+          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_A336EFB56863462DB53352BEA085CA08 }}
 
       - name: 'Deploy to Azure Web App'
         uses: azure/webapps-deploy@v3
