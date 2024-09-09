@@ -318,7 +318,7 @@ def do_mux(video_en, video_chs, subtitles_en=None, subtitles_chs=None):
             return output_stream
 
         finally:
-            # Clean up the temporary files
+            # Clean up the temporary filess
             for temp_file in temp_files:
                 try:
                     os.remove(temp_file)
