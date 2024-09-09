@@ -1,3 +1,4 @@
+python-dotenv
 Flask
 Flask-WTF
 Bootstrap-Flask

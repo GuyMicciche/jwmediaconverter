@@ -23,10 +23,6 @@ Bootstrap5(app)
 ROOT = Path(__file__).parent
 os.environ["PATH"] += os.pathsep + str(ROOT / "bin")
 
-# Get the path to ffmpeg from the environment variable
-#ffmpeg_path = os.getenv('FFMPEG_PATH')
-#ffmpeg_path = 'ffmpeg'
-
 # Azure Blob Storage setup (replace with your credentials)
 BLOB_CONNECTION_STRING = os.getenv('BLOB_CONNECTION_STRING')
 BLOB_CONTAINER_NAME = "convertedfiles"
@@ -149,14 +145,14 @@ def create_zip(file_paths, zip_name):
     return zip_path
 
 # Function to create a ZIP file containing all the converted audio files in memory
-def create_zip_in_memory(audio_streams):
-    zip_stream = BytesIO()
-    with zipfile.ZipFile(zip_stream, 'w', zipfile.ZIP_DEFLATED) as zipf:
-        for i, audio_stream in enumerate(audio_streams):
-            audio_stream.seek(0)  # Reset the position of each audio stream
-            zipf.writestr(f'converted_video_{i + 1}.mkv', audio_stream.read())
-    zip_stream.seek(0)  # Reset stream position to the beginning of the zip
-    return zip_stream  # Return the in-memory zip stream
+def create_zip_in_memory(files):
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".zip") as tmp_zip:
+        with zipfile.ZipFile(tmp_zip, 'w', zipfile.ZIP_DEFLATED) as zipf:
+            for i, file in enumerate(files):
+                zipf.write(file, f'converted_video_{i + 1}.mkv')
+        tmp_zip.seek(0)  # Reset the file position
+
+    return tmp_zip.name  # Return the name of the temporary zip file
 
 # Function to upload the ZIP file to Azure Blob Storage
 def upload_to_blob(file_path, blob_name):
@@ -165,10 +161,11 @@ def upload_to_blob(file_path, blob_name):
         blob_client.upload_blob(data)
     return blob_client.url
 
-def upload_to_blob_from_memory(audio_stream, blob_name):
+def upload_to_blob_from_file(file_path, blob_name):
     blob_client = container_client.get_blob_client(blob_name)
-    # Upload the audio stream directly to Azure Blob Storage
-    blob_client.upload_blob(audio_stream, blob_type="BlockBlob", overwrite=True)
+    # Upload the file directly to Azure Blob Storage
+    with open(file_path, 'rb') as file:
+        blob_client.upload_blob(file, blob_type="BlockBlob", overwrite=True)
     return blob_client.url  # Return the URL of the uploaded blob
 
 # Helper function to fetch video download link based on the largest filesize
@@ -267,22 +264,21 @@ def convert_and_combine_videos(video_info):
             print("Chinese subtitles size:", subtitles_chs.getbuffer().nbytes)
 
         # Combine the audio and subtitles using ffmpeg
-        combined_stream = combine_audio_subtitles(video_en, video_chs, subtitles_en, subtitles_chs)
+        combined_file = combine_audio_subtitles(video_en, video_chs, subtitles_en, subtitles_chs)
 
-        return combined_stream
+        return combined_file
     except Exception as e:
         print(f"Error during conversion: {e}")
         return None
-
+    
 def combine_audio_subtitles(video_en, video_chs, subtitles_en=None, subtitles_chs=None):
     """
     Combine English and Chinese audio streams and subtitles into a single MKV file.
-    Returns the MKV file as a file stream.
     """
-    output_stream = BytesIO()
-
-    with tempfile.NamedTemporaryFile(delete=False) as temp_video_en, \
-         tempfile.NamedTemporaryFile(delete=False) as temp_video_chs:
+    output_file = tempfile.NamedTemporaryFile(delete=False, suffix=".mkv")
+    
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as temp_video_en, \
+         tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as temp_video_chs:
         
         temp_files = [temp_video_en.name, temp_video_chs.name]
 
@@ -298,13 +294,13 @@ def combine_audio_subtitles(video_en, video_chs, subtitles_en=None, subtitles_ch
 
         # Add subtitles input commands
         if subtitles_en:
-            with tempfile.NamedTemporaryFile(delete=False) as temp_subtitles_en:
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".vtt") as temp_subtitles_en:
                 temp_subtitles_en.write(subtitles_en.getvalue())
                 temp_files.append(temp_subtitles_en.name)
                 command.extend(['-i', temp_subtitles_en.name])  # English subtitle input
 
         if subtitles_chs:
-            with tempfile.NamedTemporaryFile(delete=False) as temp_subtitles_chs:
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".vtt") as temp_subtitles_chs:
                 temp_subtitles_chs.write(subtitles_chs.getvalue())
                 temp_files.append(temp_subtitles_chs.name)
                 command.extend(['-i', temp_subtitles_chs.name])  # Chinese subtitle input
@@ -318,11 +314,11 @@ def combine_audio_subtitles(video_en, video_chs, subtitles_en=None, subtitles_ch
             '-map', '1:a:0',  # Map Chinese audio
         ])
 
-        # Add subtitle streams if available
+        # Add metadata for subtitle streams
         if subtitles_en:
-            command.extend(['-map', '2:s:0', '-c:s:0', 'srt'])  # Map and set codec for English subtitles
+            command.extend(['-map', '2:s:0', '-c:s:v:0', 'srt'])  # Metadata for English subtitles
         if subtitles_chs:
-            command.extend(['-map', '3:s:0', '-c:s:1', 'srt'])  # Map and set codec for Chinese subtitles
+            command.extend(['-map', '3:s:0', '-c:s:v:1', 'srt'])  # Metadata for Chinese subtitles
 
         # Add metadata for audio streams
         command.extend([
@@ -336,22 +332,27 @@ def combine_audio_subtitles(video_en, video_chs, subtitles_en=None, subtitles_ch
         if subtitles_chs:
             command.extend(['-metadata:s:s:1', 'language=chi', '-metadata:s:s:1', 'title=Chinese'])  # Metadata for Chinese subtitles
 
-        command.extend(['-f', 'matroska', 'pipe:1'])  # Output as MKV format to stdout
+        command.extend(['-f', 'matroska', output_file.name])  # Output as MKV format to temporary file
 
-        # Run the ffmpeg process and capture output
         process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
         try:
-            # Read the stdout (output MKV stream) and write it to output_stream
-            output, error = process.communicate()
+            # Collect output and handle progress
+            while True:
+                stderr_output = process.stderr.readline()
+                if stderr_output == '' and process.poll() is not None:
+                    break
+                if stderr_output:
+                    pass
+
+            output, err = process.communicate()
 
             if process.returncode != 0:
-                print(f"FFmpeg error: {error.decode('utf-8')}")
-                raise Exception("Error during FFmpeg processing")
+                print(f"FFmpeg error: {err}")
+                raise subprocess.CalledProcessError(process.returncode, command, output=output, stderr=err)
 
-            output_stream.write(output)
-            output_stream.seek(0)  # Reset stream pointer for reading
-            return output_stream
+            print("ready")
+            return output_file.name
 
         finally:
             # Clean up the temporary files
@@ -360,7 +361,7 @@ def combine_audio_subtitles(video_en, video_chs, subtitles_en=None, subtitles_ch
                     os.remove(temp_file)
                 except OSError:
                     pass
-      
+    
 def download_subtitles(subtitle_url):
     if not subtitle_url:
         return None
@@ -413,7 +414,7 @@ def convert_video():
         zip_stream = create_zip_in_memory(audio_streams)
 
         # Step 5: Upload the ZIP file to Azure Blob Storage
-        zip_blob_url = upload_to_blob_from_memory(zip_stream, zip_name)
+        zip_blob_url = upload_to_blob_from_file(zip_stream, zip_name)
 
         return jsonify({"status": "success", "download_url": zip_blob_url})
 
@@ -427,7 +428,7 @@ def download_selected_videos():
     selected_videos_json = request.form.get('selected_videos', '[]')
     selected_videos = json.loads(selected_videos_json)
     
-    combined_streams = []
+    combined_files = []
 
     # Fetch, combine, and zip videos
     for video in selected_videos:
@@ -438,19 +439,19 @@ def download_selected_videos():
             print(video_info)
 
             # Convert and combine video, audio, and subtitles
-            combined_stream = convert_and_combine_videos(video_info)
-            if combined_stream:
-                combined_streams.append(combined_stream)
+            output = convert_and_combine_videos(video_info)
+            if output:
+                combined_files.append(output)
         except Exception as e:
             return jsonify({"status": "error", "message": str(e)}), 500
 
     # Zip the combined streams
-    zip_stream = create_zip_in_memory(combined_streams)
+    zip_stream = create_zip_in_memory(combined_files)
 
     # Upload ZIP to Azure Blob Storage
     zip_blob_name = 'combined_audio_subtitles.zip'
     try:
-        zip_blob_url = upload_to_blob_from_memory(zip_stream, zip_blob_name)
+        zip_blob_url = upload_to_blob_from_file(zip_stream, zip_blob_name)
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
