@@ -9,14 +9,14 @@ variables:
   azureDevOpsRepoUrl: 'https://kingguy.visualstudio.com/jwmediaconverter'
 
 steps:
-- task: GitFetch@2
-  inputs:
-    repository: self
-    refName: 'refs/heads/main'
-    fetchDepth: 0
+- script: |
+    git init
+    git remote add origin $(githubRepoUrl)
+    git fetch origin main
+    git checkout -b main origin/main
+  displayName: 'Fetch from GitHub'
 
-- task: GitPush@3
-  inputs:
-    targetRef: 'refs/heads/main'
-    repository: $(azureDevOpsRepoUrl)
-    pushPolicy: 'ForcePush'
+- script: |
+    git remote add azure $(azureDevOpsRepoUrl)
+    git push azure main --force
+  displayName: 'Push to Azure DevOps'
