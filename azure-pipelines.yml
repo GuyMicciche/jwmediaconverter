@@ -6,7 +6,7 @@ pool:
 
 variables:
   githubRepoUrl: 'https://github.com/GuyMicciche/jwmediaconverter'
-  azureDevOpsRepoUrl: 'https://kingguy.visualstudio.com/jwmediaconverter/_git/jwmediaconverter'
+  azureDevOpsRepoUrl: 'kingguy.visualstudio.com/jwmediaconverter'
 
 steps:
 - script: |
