@@ -1,0 +1,22 @@
+trigger:
+- main
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  githubRepoUrl: 'https://github.com/GuyMicciche/jwmediaconverter'
+  azureDevOpsRepoUrl: 'https://kingguy.visualstudio.com/jwmediaconverter'
+
+steps:
+- task: GitFetch@2
+  inputs:
+    repository: self
+    refName: 'refs/heads/main'
+    fetchDepth: 0
+
+- task: GitPush@3
+  inputs:
+    targetRef: 'refs/heads/main'
+    repository: $(azureDevOpsRepoUrl)
+    pushPolicy: 'ForcePush'
