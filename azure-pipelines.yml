@@ -1,25 +1,32 @@
 trigger:
-- main
+  branches:
+    include:
+      - main
 
 pool:
   vmImage: 'ubuntu-latest'
 
-variables:
-  githubRepoUrl: 'https://github.com/GuyMicciche/jwmediaconverter'
-  azureDevOpsRepoUrl: 'dev.azure.com/kingguy/jwmediaconverter/_git/jwmediaconverter'
-  
 steps:
-- script: |
-    git init
-    git remote add origin $(githubRepoUrl)
-    git fetch origin main
-    git checkout -b main origin/main
-  displayName: 'Fetch from GitHub'
+# Step 1: Fetch latest changes from GitHub
+- task: Bash@3
+  inputs:
+    targetType: 'inline'
+    script: |
+      git clone https://github.com/GuyMicciche/jwmediaconverter.git
+      cd jwmediaconverter
+      git checkout main
+      git pull origin main
 
-# Push to Azure DevOps using System.AccessToken for authentication
-- script: |
-    git remote add azure https://$(System.AccessToken)@$(azureDevOpsRepoUrl)
-    git push azure main --force
-  displayName: 'Push to Azure DevOps'
-  env:
-    SYSTEM_ACCESSTOKEN: $(System.AccessToken) # Azure DevOps system access token
+# Step 2: Push changes to Azure DevOps Repository
+- task: Bash@3
+  inputs:
+    targetType: 'inline'
+    script: |
+      git remote add azure https://$(AZURE_DEVOPS_PAT)@dev.azure.com/kingguy/jwmediaconverter/_git/jwmediaconverter
+      git push azure main
+
+# Step 3: Clean up cloned GitHub repository folder
+- task: DeleteFiles@1
+  inputs:
+    SourceFolder: '$(Build.SourcesDirectory)/jwmediaconverter'
+
