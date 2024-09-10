@@ -16,7 +16,10 @@ steps:
     git checkout -b main origin/main
   displayName: 'Fetch from GitHub'
 
+# Push to Azure DevOps using System.AccessToken for authentication
 - script: |
-    git remote add azure $(azureDevOpsRepoUrl)
+    git remote add azure https://$(System.AccessToken)@$(azureDevOpsRepoUrl)
     git push azure main --force
   displayName: 'Push to Azure DevOps'
+  env:
+    SYSTEM_ACCESSTOKEN: $(System.AccessToken) # Azure DevOps system access token
