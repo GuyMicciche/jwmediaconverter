@@ -31,6 +31,7 @@ jobs:
         run: |
           pip install -r requirements.txt
           pip install --upgrade setuptools
+          pip install -U pyinstaller
 
       - name: Install MKVToolNix
         run: |
@@ -47,7 +48,12 @@ jobs:
           # Keep only the ffmpeg executable, remove other files
           find ./app/bin ! -name 'ffmpeg' -type f -exec rm -f {} +  
 
-      # Optional: Add step to run tests here (PyTest, Django test suites, etc.)
+      - name: Collect data files from jieba and pypinyin
+        run: |
+          mkdir -p ./collected_data/jieba
+          mkdir -p ./collected_data/pypinyin
+          cp -r $(python -c 'import jieba; print(jieba.__path__[0])')/* ./collected_data/jieba/
+          cp -r $(python -c 'import pypinyin; print(pypinyin.__path__[0])')/* ./collected_data/pypinyin/
 
       - name: Zip artifact for deployment
         run: zip release.zip ./* -r
@@ -92,4 +98,3 @@ jobs:
         with:
           app-name: 'jwmediaconverter'
           slot-name: 'Production'
-          
