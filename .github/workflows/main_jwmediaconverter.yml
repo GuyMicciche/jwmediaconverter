@@ -33,6 +33,14 @@ jobs:
           pip install --upgrade setuptools
           pip install -U pyinstaller
       
+          pip install jieba
+          pip install pypinyin
+
+      - name: Install MKVToolNix
+        run: |
+          sudo apt update
+          sudo apt install mkvtoolnix mkvtoolnix-gui
+
       - name: Create bin directory
         run: mkdir -p ./app/bin
 
