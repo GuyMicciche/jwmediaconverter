@@ -35,8 +35,18 @@ jobs:
 
       - name: Install MKVToolNix
         run: |
-          sudo apt-get update
-          sudo apt-get install -y mkvtoolnix
+          # Download the MKVToolNix tar.xz archive
+          wget -O ./app/bin/mkvtoolnix.tar.xz https://mkvtoolnix.download/appimage/MKVToolNix_GUI-87.0-x86_64.AppImage
+          # Create a temporary directory to extract the archive
+          mkdir -p ./app/bin/mkvtoolnix_temp
+          # Extract the contents of the tar.xz archive
+          tar -xf ./app/bin/mkvtoolnix.tar.xz --directory=./app/bin/mkvtoolnix_temp
+          # Move the mkvmerge executable from the extracted directory to app/bin
+          mv ./app/bin/mkvtoolnix_temp/usr/bin/mkvmerge ./app/bin/
+          # Clean up the temporary files and tar archive
+          rm -rf ./app/bin/mkvtoolnix_temp ./app/bin/mkvtoolnix.tar.xz
+          # Optionally, verify mkvmerge
+          ./app/bin/mkvmerge --version
 
       - name: Create bin directory
         run: mkdir -p ./app/bin
@@ -45,6 +55,7 @@ jobs:
         run: |
           wget -O ./app/bin/ffmpeg.tar.xz https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz
           tar -xf ./app/bin/ffmpeg.tar.xz --strip-components=1 -C ./app/bin
+          rm -rf ./app/bin/ffmpeg.tar.xz
           # Keep only the ffmpeg executable, remove other files
           find ./app/bin ! -name 'ffmpeg' -type f -exec rm -f {} +  
 
