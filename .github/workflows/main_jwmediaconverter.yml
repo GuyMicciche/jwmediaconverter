@@ -37,18 +37,8 @@ jobs:
 
       - name: Install MKVToolNix
         run: |
-          # Download the MKVToolNix tar.xz archive
-          wget -O ./app/bin/mkvtoolnix.tar.xz https://mkvtoolnix.download/appimage/MKVToolNix_GUI-87.0-x86_64.AppImage
-          # Create a temporary directory to extract the archive
-          mkdir -p ./app/bin/mkvtoolnix_temp
-          # Extract the contents of the tar.xz archive
-          tar -xf ./app/bin/mkvtoolnix.tar.xz -C ./app/bin/mkvtoolnix_temp
-          # Move the mkvmerge executable from the extracted directory to app/bin
-          mv ./app/bin/mkvtoolnix_temp/usr/bin/mkvmerge ./app/bin/
-          # Clean up the temporary files and tar archive
-          rm -rf ./app/bin/mkvtoolnix_temp ./app/bin/mkvtoolnix.tar.xz
-          # Optionally, verify mkvmerge
-          ./app/bin/mkvmerge --version
+          sudo apt update
+          sudo apt install mkvtoolnix mkvtoolnix-gui
 
       - name: Create bin directory
         run: mkdir -p ./app/bin
