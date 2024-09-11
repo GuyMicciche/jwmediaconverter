@@ -6,3 +6,5 @@ gunicorn
 Werkzeug
 azure-storage-blob
 pymkv2
+pypinyin
+jieba
