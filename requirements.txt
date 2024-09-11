@@ -5,3 +5,4 @@ Bootstrap-Flask
 gunicorn
 Werkzeug
 azure-storage-blob
+pymkv2
