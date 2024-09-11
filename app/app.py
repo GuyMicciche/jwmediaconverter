@@ -16,6 +16,7 @@ from flask_wtf import FlaskForm
 from wtforms import StringField
 from wtforms.validators import DataRequired
 from azure.storage.blob import BlobServiceClient, BlobClient, ContainerClient
+from subtitle_processor import SubtitleProcessor
 from pymkv import MKVFile, MKVTrack
 from io import BytesIO
 from pathlib import Path
@@ -238,7 +239,6 @@ def download_to_tempfile(url):
     
 # Function to convert VTT to SRT and return the content as a BytesIO object
 def convert_vtt_to_temp_srt(vtt_filepath):
-    print(vtt_filepath)
     # Create a temporary SRT file with automatic deletion
     with tempfile.NamedTemporaryFile(delete=False, suffix=".vtt") as temp_srt:
         # Open and read the VTT file
@@ -303,8 +303,8 @@ def do_mkvmerge(english_title, chinese_title, video_en, video_chs, subtitles_en=
              tempfile.NamedTemporaryFile(delete=False, suffix=".vtt") as temp_subtitles_en, \
              tempfile.NamedTemporaryFile(delete=False, suffix=".srt") as temp_srt_en, \
              tempfile.NamedTemporaryFile(delete=False, suffix=".vtt") as temp_subtitles_chs, \
-             tempfile.NamedTemporaryFile(delete=False, suffix=".srt") as temp_srt_chs:
-            print(111)
+             tempfile.NamedTemporaryFile(delete=False, suffix=".srt") as temp_srt_chs, \
+             tempfile.NamedTemporaryFile(delete=False, suffix=".srt") as temp_srt_pinyin:
             
             temp_video_en.write(download_file(video_en).read())
             temp_video_en.seek(0)  # Rewind
@@ -322,6 +322,9 @@ def do_mkvmerge(english_title, chinese_title, video_en, video_chs, subtitles_en=
                 temp_subtitles_chs.seek(0)  # Rewind
                 temp_srt_chs.write(convert_vtt_to_temp_srt(temp_subtitles_chs.name).read())
                 temp_srt_chs.seek(0)  # Rewind
+                processor = SubtitleProcessor()
+                processor.generate_pinyin_subtitle_file(temp_srt_chs.name, temp_srt_pinyin.name)
+                temp_srt_pinyin.seek(0)  # Rewind
         
             # Create an MKVFile object
             mkv = MKVFile()
@@ -339,6 +342,7 @@ def do_mkvmerge(english_title, chinese_title, video_en, video_chs, subtitles_en=
 
             if subtitles_chs:
                 mkv.add_track(MKVTrack(temp_srt_chs.name, language="chi", track_name="中文"))
+                mkv.add_track(MKVTrack(temp_srt_pinyin.name, language="chi", track_name="Pīnyīn"))
 
             temp_mkv_file = os.path.join(ROOT, "output.mkv")
             mkv.mux(temp_mkv_file)
@@ -352,7 +356,7 @@ def do_mkvmerge(english_title, chinese_title, video_en, video_chs, subtitles_en=
         # Delete the temporary files
         os.remove(temp_mkv_file)
         for temp_file in [temp_video_en, temp_video_chs, temp_subtitles_en, 
-                            temp_srt_en, temp_subtitles_chs, temp_srt_chs]:
+                            temp_srt_en, temp_subtitles_chs, temp_srt_chs, temp_srt_pinyin]:
             temp_file.close()
             os.remove(temp_file.name)
         print(f"An error occurred: {e}")
@@ -361,7 +365,7 @@ def do_mkvmerge(english_title, chinese_title, video_en, video_chs, subtitles_en=
         # Delete the temporary files
         os.remove(temp_mkv_file)
         for temp_file in [temp_video_en, temp_video_chs, temp_subtitles_en, 
-                            temp_srt_en, temp_subtitles_chs, temp_srt_chs]:
+                            temp_srt_en, temp_subtitles_chs, temp_srt_chs, temp_srt_pinyin]:
             temp_file.close()
             os.remove(temp_file.name)
 
