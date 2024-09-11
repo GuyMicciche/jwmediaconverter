@@ -288,8 +288,8 @@ def combine_streams(video_info):
         subtitles_chs_url = video_info['chs']['subtitles_url'] if video_info['chs']['subtitles_url'] != 'None' else None
 
         # Combine the audio and subtitles using ffmpeg
-        combined_stream = do_ffmpeg(english_title, chinese_title, video_en_url, video_chs_url, subtitles_en_url, subtitles_chs_url)
-        #combined_stream = do_mkvmerge(english_title, chinese_title, video_en_url, video_chs_url, subtitles_en_url, subtitles_chs_url)
+        #combined_stream = do_ffmpeg(english_title, chinese_title, video_en_url, video_chs_url, subtitles_en_url, subtitles_chs_url)
+        combined_stream = do_mkvmerge(english_title, chinese_title, video_en_url, video_chs_url, subtitles_en_url, subtitles_chs_url)
 
         return combined_stream
     except Exception as e:
