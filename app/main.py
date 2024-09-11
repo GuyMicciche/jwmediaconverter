@@ -32,6 +32,7 @@ os.environ["PATH"] += os.pathsep + str(ROOT / "bin")
 APP_MODE = os.getenv('APP_MODE', 'DEBUG')
 
 if APP_MODE == 'RELEASE':
+    os.environ['PATH'] += os.pathsep + '/usr/bin'
     ffmpeg_path = "/home/site/wwwroot/bin/ffmpeg" # not used, ffmpeg install included in the yml
 else:
     # Assuming ffmpeg is located at a different path during debugging
