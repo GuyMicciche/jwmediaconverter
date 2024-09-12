@@ -129,8 +129,6 @@ dmypy.json
 .pyre/
 
 
-app/bin/ffmpeg.exe
-app/bin/mkvmerge.exe
 app/flask_advanced.py
 app/flask_simple.py
 app/old-main.py
