@@ -173,10 +173,12 @@ def fetch_download_links(language_agnostic_natural_key):
     # Fetch English media
     url_en = f"{base_url}/E/{language_agnostic_natural_key}?clientType=www"
     response_en = requests.get(url_en)
+    response_en.encoding = 'utf-8'  # Force UTF-8 encoding for English response
     
     # Fetch Chinese Simplified media
     url_chs = f"{base_url}/CHS/{language_agnostic_natural_key}?clientType=www"
     response_chs = requests.get(url_chs)
+    response_chs.encoding = 'utf-8'  # Force UTF-8 encoding for Chinese response
     
     if response_en.status_code == 200 and response_chs.status_code == 200:
         media_data_en = response_en.json().get('media', [])[0]
@@ -281,8 +283,8 @@ def combine_streams(video_info):
     Combine English and Chinese videos and subtitles into a single file.
     """
     try:
-        english_title = video_info['en']['title']
-        chinese_title = video_info['chs']['title']
+        english_title = video_info['en']['title'].encode('utf-8').decode('utf-8')
+        chinese_title = video_info['chs']['title'].encode('utf-8').decode('utf-8')
         video_en_url = video_info['en']['video_url']
         video_chs_url = video_info['chs']['video_url']
         subtitles_en_url = video_info['en']['subtitles_url'] if video_info['en']['subtitles_url'] != 'None' else None
@@ -345,7 +347,7 @@ def do_mkvmerge(english_title, chinese_title, video_en, video_chs, subtitles_en=
                 mkv.add_track(MKVTrack(temp_srt_chs.name, language="chi", track_name="中文"))
                 mkv.add_track(MKVTrack(temp_srt_pinyin.name, language="chi", track_name="Pīnyīn"))
 
-            temp_mkv_file = os.path.join(ROOT, "output.mkv")
+            temp_mkv_file = os.path.join(ROOT.parent.parent, "output.mkv")
             mkv.mux(temp_mkv_file)
 
             with open(temp_mkv_file, 'rb') as f:
