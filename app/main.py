@@ -32,7 +32,6 @@ os.environ["PATH"] += os.pathsep + str(ROOT / "bin")
 APP_MODE = os.getenv('APP_MODE', 'DEBUG')
 
 if APP_MODE == 'RELEASE':
-    os.environ['PATH'] += os.pathsep + '../usr/bin'
     ffmpeg_path = "/home/site/wwwroot/bin/ffmpeg" # not used, ffmpeg install included in the yml
 else:
     # Assuming ffmpeg is located at a different path during debugging
@@ -60,6 +59,7 @@ def index():
 def favicon():
     return send_from_directory(os.path.join(app.root_path, 'static'), 'favicon.ico', mimetype='image/vnd.microsoft.icon')
 
+# https://jwmediaconverter.azurewebsites.net/hello?name=%22Guy%22
 @app.route('/hello')
 def hello():
     name = request.args.get('name')
@@ -173,12 +173,10 @@ def fetch_download_links(language_agnostic_natural_key):
     # Fetch English media
     url_en = f"{base_url}/E/{language_agnostic_natural_key}?clientType=www"
     response_en = requests.get(url_en)
-    response_en.encoding = 'utf-8'  # Force UTF-8 encoding for English response
     
     # Fetch Chinese Simplified media
     url_chs = f"{base_url}/CHS/{language_agnostic_natural_key}?clientType=www"
     response_chs = requests.get(url_chs)
-    response_chs.encoding = 'utf-8'  # Force UTF-8 encoding for Chinese response
     
     if response_en.status_code == 200 and response_chs.status_code == 200:
         media_data_en = response_en.json().get('media', [])[0]
@@ -283,8 +281,8 @@ def combine_streams(video_info):
     Combine English and Chinese videos and subtitles into a single file.
     """
     try:
-        english_title = video_info['en']['title'].encode('utf-8').decode('utf-8')
-        chinese_title = video_info['chs']['title'].encode('utf-8').decode('utf-8')
+        english_title = video_info['en']['title']
+        chinese_title = video_info['chs']['title']
         video_en_url = video_info['en']['video_url']
         video_chs_url = video_info['chs']['video_url']
         subtitles_en_url = video_info['en']['subtitles_url'] if video_info['en']['subtitles_url'] != 'None' else None
