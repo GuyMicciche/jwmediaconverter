@@ -37,11 +37,11 @@ jobs:
 
       - name: Download and extract FFMPEG to app/bin
         run: |
-          wget -O ./app/bin/ffmpeg.tar.xz https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz
-          tar -xf ./app/bin/ffmpeg.tar.xz --strip-components=1 -C ./app/bin
-          rm -rf ./app/bin/ffmpeg.tar.xz
+          wget -O ./bin/ffmpeg.tar.xz https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz
+          tar -xf ./bin/ffmpeg.tar.xz --strip-components=1 -C ./app/bin
+          rm -rf ./bin/ffmpeg.tar.xz
           # Keep only the ffmpeg executable, remove other files
-          find ./app/bin ! -name 'ffmpeg' -type f -exec rm -f {} +  
+          find ./bin ! -name 'ffmpeg' -type f -exec rm -f {} +  
 
       - name: Collect data files from jieba and pypinyin
         run: |
