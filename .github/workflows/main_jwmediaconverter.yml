@@ -33,7 +33,7 @@ jobs:
           pip install --upgrade setuptools
 
       - name: Create bin directory
-        run: mkdir -p ./bin
+        run: mkdir -p ./app/bin
 
       - name: Download and extract FFMPEG to app/bin
         run: |
