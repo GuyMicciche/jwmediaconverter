@@ -33,12 +33,12 @@ jobs:
           pip install --upgrade setuptools
 
       - name: Create bin directory
-        run: mkdir -p ./app/bin
+        run: mkdir -p ./bin
 
       - name: Download and extract FFMPEG to app/bin
         run: |
           wget -O ./bin/ffmpeg.tar.xz https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz
-          tar -xf ./bin/ffmpeg.tar.xz --strip-components=1 -C ./app/bin
+          tar -xf ./bin/ffmpeg.tar.xz --strip-components=1 -C ./bin
           rm -rf ./bin/ffmpeg.tar.xz
           # Keep only the ffmpeg executable, remove other files
           find ./bin ! -name 'ffmpeg' -type f -exec rm -f {} +  
