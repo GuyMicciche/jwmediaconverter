@@ -27,7 +27,7 @@ app.secret_key = 'supersecretkey'  # Necessary for CSRF protection in Flask-WTF
 Bootstrap5(app)
 
 ROOT = Path(__file__).parent
-os.environ["PATH"] += os.pathsep + str(ROOT.parent / "bin")
+os.environ["PATH"] += os.pathsep + str(ROOT / "bin")
 
 APP_MODE = os.getenv('APP_MODE', 'DEBUG')
 
