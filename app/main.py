@@ -345,7 +345,7 @@ def do_mkvmerge(english_title, chinese_title, video_en, video_chs, subtitles_en=
                 mkv.add_track(MKVTrack(temp_srt_chs.name, language="chi", track_name="中文"))
                 mkv.add_track(MKVTrack(temp_srt_pinyin.name, language="chi", track_name="Pīnyīn"))
 
-            temp_mkv_file = os.path.join(ROOT.parent.parent, "output.mkv")
+            temp_mkv_file = os.path.join(ROOT.parent, "output.mkv")
             mkv.mux(temp_mkv_file)
 
             with open(temp_mkv_file, 'rb') as f:
